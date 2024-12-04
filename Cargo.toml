@@ -5,4 +5,6 @@ edition = "2021"
 
 [dependencies]
 libc = "0.2.161"
+tokio = { version = "1", features = ["full"] }
 v8 = "130.0.0"
+mio = "1"

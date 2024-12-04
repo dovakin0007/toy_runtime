@@ -2,7 +2,7 @@ use std::{fs::{File, OpenOptions}, os::windows::io::{AsRawHandle, FromRawHandle,
 
 use v8;
 
-use crate::{set_constant_to, set_internal_ref, throw_exception};
+use crate::bindings::{set_constant_to, set_internal_ref, throw_exception};
 
 pub fn open_sync(
     scope: &mut v8::HandleScope,
