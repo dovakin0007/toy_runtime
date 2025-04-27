@@ -7,8 +7,6 @@
 // use std::{cell::RefCell, rc::Rc, sync::Once};
 // use v8;
 
-
-
 // fn context_init<'s>(scope: &mut v8::HandleScope<'s, ()>) -> v8::Local<'s, v8::Context> {
 //     // let version = v8::ObjectTemplate::new(context_scope);
 //     let scope = &mut v8::EscapableHandleScope::new(scope);
@@ -86,9 +84,9 @@ use std::sync::Once;
 
 use tokio;
 use v8;
-mod runtime;
-mod fs;
 mod bindings;
+mod fs;
+mod runtime;
 use runtime::*;
 
 #[tokio::main]

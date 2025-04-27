@@ -1,4 +1,7 @@
-use std::{fs::{File, OpenOptions}, os::windows::io::{AsRawHandle, FromRawHandle, RawHandle}};
+use std::{
+    fs::{File, OpenOptions},
+    os::windows::io::{AsRawHandle, FromRawHandle, RawHandle},
+};
 
 use v8;
 
@@ -16,10 +19,11 @@ pub fn open_sync(
     let mut file_options = OpenOptions::new();
     let x = match flags {
         "r" => file_options.read(true).open(file_name_path),
-        _ => file_options.read(true).open(file_name_path)
+        _ => file_options.read(true).open(file_name_path),
     };
     match x {
-        Ok(file) => {
+        Ok(file) =>
+        {
             #[cfg(target_os = "windows")]
             if cfg!(windows) {
                 let file_ptr = file.as_raw_handle() as usize;
@@ -32,7 +36,7 @@ pub fn open_sync(
                 set_internal_ref(scope, file_wrapper, 0, Some(file));
                 rv.set(file_wrapper.into());
             }
-        },
+        }
         Err(e) => {
             let error_message = e.to_string();
             throw_exception(scope, error_message.as_str());

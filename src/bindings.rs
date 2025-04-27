@@ -54,7 +54,7 @@ pub fn set_internal_ref<'s, T>(
     scope: &mut v8::HandleScope<'s>,
     target: v8::Local<v8::Object>,
     index: usize,
-    data: T
+    data: T,
 ) {
     let box_ref = Box::new(data);
     let stored_item = Box::leak(box_ref) as *mut T as *mut c_void;

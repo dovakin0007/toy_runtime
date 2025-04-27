@@ -1,32 +1,28 @@
-use mio::{Events, Poll, Token, Waker};
-use tokio::sync::Mutex;
-use std::sync::Arc;
-use crate::{fs::open_sync, bindings::set_function_to};
+use crate::{bindings::set_function_to, fs::open_sync};
+use calloop::{EventLoop, LoopHandle, LoopSignal};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
+
+pub trait JsFuture {
+    fn run(&mut self, scope: &mut v8::HandleScope);
+}
 
 pub struct JsRuntime {
     isolate: v8::OwnedIsolate,
+    pub handle: Arc<calloop::EventLoop<'static, LoopSignal>>,
 }
 
 pub struct JsRuntimeState {
     pub global_context: v8::Global<v8::Context>,
-    pub poll: Poll,
-    pub events: Mutex<Events>,
-    pub waker: Arc<Waker>,
-    pub jobs: JobHandlers,
-}
-
-pub struct JobHandlers {
-    pub idle: Token,   // Represented by `mio::Token` for job registration.
-    pub prepare: Token,
-    pub check: Token,
+    pub handle: LoopHandle<'static, LoopSignal>,
+    pub pending_futures: Vec<Box<dyn JsFuture>>,
 }
 
 impl JsRuntime {
     /// Create a new instance of the JavaScript runtime.
     pub fn new() -> Self {
-        // Create a new V8 isolat
+        // Create a new V8 isolate
         let mut isolate = v8::Isolate::new(v8::CreateParams::default());
 
         let context = {
@@ -34,11 +30,15 @@ impl JsRuntime {
             let context = Self::context_init(scope);
             v8::Global::new(scope, context)
         };
-
-        let state = Rc::new(RefCell::new(JsRuntimeState::new(context)));
+        let handle = Arc::new(EventLoop::try_new().expect("Failed to initialize the event loop!"));
+        let state = Rc::new(RefCell::new(JsRuntimeState {
+            global_context: context,
+            handle: handle.handle().clone(),
+            pending_futures: vec![],
+        }));
         isolate.set_slot(state);
 
-        Self {isolate}
+        Self { isolate, handle }
     }
 
     /// Initialize the global context.
@@ -63,14 +63,12 @@ impl JsRuntime {
         v8::Global::new(scope, context)
     }
 
-    /// Run a JavaScript script asynchronously.
     pub async fn run_script(&mut self, file_path: &str) {
         // Read JavaScript code
         let js_code = tokio::fs::read_to_string(file_path)
             .await
             .expect("Failed to read the JavaScript file");
 
-        // Retrieve the runtime state from the isolate
         let state = self
             .isolate
             .get_slot::<Rc<RefCell<JsRuntimeState>>>()
@@ -92,25 +90,3 @@ impl JsRuntime {
         );
     }
 }
-
-impl JsRuntimeState {
-    /// Create a new runtime state.
-    pub fn new(global_context: v8::Global<v8::Context>) -> Self {
-        let poll = Poll::new().expect("Failed to create Poll instance");
-        let events = Mutex::new(Events::with_capacity(1024));
-        let waker = Arc::new(Waker::new(poll.registry(), Token(0)).unwrap());
-
-        JsRuntimeState {
-            global_context,
-            poll,
-            events,
-            waker,
-            jobs: JobHandlers {
-                idle: Token(1),
-                prepare: Token(2),
-                check: Token(3),
-            },
-        }
-    }
-}
-
